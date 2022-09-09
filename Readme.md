@@ -1,5 +1,5 @@
 # scale_troubleshoot_ornl
-This repository contains the generic instructions to build SCALE from source with MPI enabled in a Docker image based on Amazon Linux 2 with some common tooling installed.
+This repository contains the generic instructions to build SCALE from source with MPI enabled in a Docker image based on Amazon Linux 2 with some common tooling installed.  Please note that we are experiencing the same failures outside of Docker with the same OS, build tools, and dependencies.  Docker has just been thought to be the easiest way to share our environment for testing.
 
 # Image Building
 What can't be encapsulated here is how to load the source into the image, and there are two options.
@@ -20,7 +20,7 @@ What can't be encapsulated here is how to load the source into the image, and th
 # Image Use
 For our SCALE image named `scale_mpi`, to get a shell in, you need to specify
 1. Mapping in the SCALE data (outer path on left and in-container on the right)
-1. Mapping in where the files to run are
+1. Mapping in where the files to run are (same schema as above)
 1. Specifying your working directory the same as where files are
 1. Ensure MPI has enough shared memory, since Docker defaults to 64 MB
 
@@ -45,18 +45,23 @@ chown -R `ls -lan *.inp | head -n 1 | awk '{print $3":"$4}'` .
 ```
 
 ## Notes and Current Status
-When you launch a container with the image you just built, either put no arguments after the image name or `/bin/bash -l`.  For some reason SCALE only works with a login shell (perhaps due to SSHD not running otherwise?), which is the default for the given base image.  How we are building and installing has worked outside of Docker since day one on instances with the same OS, compilers, package version, and procedures from the top down.
+When you launch a container with the image you just built, either put no arguments after the image name or `/bin/bash -l`.  For some reason SCALE only works with a login shell (perhaps due to SSHD not running otherwise?), which is the default for the given base image.
 
-Currently, it runs our sample model that can't be shared due to company IP for about a half hour without running out of memory RAM, or disk, and the test problem from support crashes after running for a bit in the same manner.  Neither crash when `mpiexec` is not used, and our `scalerte` doesn't seem to invoke MPI based on running single core when it's not prepended.  Controlling core count only works with `mpiexec -np [cores]`, and the `-N` flag for `scalerte` does not impact process count.
+Currently, inside Docker and outside, every input runs for a while without running out of memory RAM, or disk.  Again, Neither crash when `mpiexec` is not used, and our `scalerte` doesn't seem to invoke MPI based on running single core in the absence of `mpiexec` being prepended.  Controlling core count only works with `mpiexec -np [cores]`, and the `-N` flag for `scalerte` does not impact process count.
 
-The main constraint to trying things out is that the Qt and OpenMPI dependencies lag behind what's available via package manager on a recent Linux distro, and building them from source has been an endless rabbit hole.  OpenMPI encourages using external dependencies to avoid pitfalls, but its dependencies are too recent for SCALE.  MPICH 3.3 was also tried, but in spite of us running Docker images for codes built on MPICh for years, it failed after half hour as well.
+The main constraint to trying things out is that the Qt and OpenMPI dependencies lag behind what's available via package manager on a recent Linux distro, and building them from source has been an endless rabbit hole.  OpenMPI encourages using external dependencies to avoid pitfalls, but its dependencies are too recent for SCALE.  MPICH 3.3 was also tried, but in spite of us running Docker images for codes built on MPICH for years, including multi-node operation, it failed after running a bit as well.
 
-Bumping up the size of `/dev/shm` from the default of 64 MB via ` docker run --shm-size="4g"` followed by 8 GB did not help, but it should likely be specified.
+Bumping up the size of `/dev/shm` from the default of 64 MB via ` docker run --shm-size="4g"` followed by 8 GB did not help, but it should likely be specified for Docker runs due to the need with other MPI codes.
 
 <!-- TODO: SHARE NON DOCKER RESULT -->
 
 ### Representative Error Output
-The `*.msg` file and `*.out` file do not contain any error messages.  All we are getting is a non-zero exit, and the following printed to the terminal.
+The `*.msg` files don't not contain any error messages.  In our `*.out`, common error messages have been
+1. `KENO failed to execute. error code -1`
+1. Segmentation fault with `PMIX ERROR: UNPACK-PAST-END`
+
+
+Last of all, the following prints to the terminal.
 ```
 --------------------------------------------------------------------------
 mpiexec has exited due to process rank 0 with PID 0 on
