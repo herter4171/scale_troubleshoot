@@ -1,4 +1,4 @@
-# scale_troubleshoot_ornl
+# scale_troubleshoot
 This repository contains the generic instructions to build SCALE from source with MPI enabled in a Docker image based on Amazon Linux 2 with some common tooling installed.  Please note that we are experiencing the same failures outside of Docker with the same OS, build tools, and dependencies.  Docker has just been thought to be the easiest way to share our environment for testing.
 
 ## Base Image Setup
