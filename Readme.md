@@ -1,10 +1,24 @@
 # scale_troubleshoot_ornl
 This repository contains the generic instructions to build SCALE from source with MPI enabled in a Docker image based on Amazon Linux 2 with some common tooling installed.  Please note that we are experiencing the same failures outside of Docker with the same OS, build tools, and dependencies.  Docker has just been thought to be the easiest way to share our environment for testing.
 
-# Image Building
-What can't be encapsulated here is how to load the source into the image, and there are two options.
+## Base Image Setup
+1. After downloading the tarball from the link provided in an email, to load it into Docker, simply run
+    ```
+    docker load < amazonlinux_base_image.tar
+    ```
 
-1. Specify a URL in place of `URL` in [Dockerfile](Dockerfile) and supply build arguments to allow cloning
+2. To see general information about the environment within the image, issue the following command.
+    ```
+    docker run harbor.kairospower.com/core-design/amazonlinux-base:ssh /etc/update-motd.d/00-main 2> /dev/null
+    ```
+
+## SCALE Image Details
+The SCALE image defined by [Dockerfile](Dockerfile) uses the shell scripts in [kp_scripts](kp_scripts) to establish package installs, OpenMPI, and finally SCALE, so tweaking how the image is built is simply a matter of editing the shell scripts.  For more details, see the readme in that subdirectory.
+
+### Building
+If you want the source and build artifacts to be present in the resulting image for testing, simply comment out the `rm` at the bottom of [kp_scripts/scale_install.sh](kp_scripts/scale_install.sh).  What can't be encapsulated here is how to load the source into the image, and there are two options.
+
+1. Specify a URL sans `https://` in place of `URL` in [Dockerfile](Dockerfile) and supply build arguments to allow cloning
     ```
     docker build \
         --build-arg GHE_CREDS_USR=username \
@@ -17,10 +31,10 @@ What can't be encapsulated here is how to load the source into the image, and th
     ```
     > NOTE: Using `COPY` should only be used for testing, because it will cache the source in an image layer even if it's "deleted" in a subsequent layer.  Cloning and removing source in a single `RUN` directive ensures that the image won't have source code embedded in its layers.
 
-# Image Use
+### Image Use
 For our SCALE image named `scale_mpi`, to get a shell in, you need to specify
-1. Mapping in the SCALE data (outer path on left and in-container on the right)
-1. Mapping in where the files to run are (same schema as above)
+1. Mapping in the SCALE data (set desired outer path to mount in left of the colon)
+1. Mapping in where the files to run are (set desired outer path to mount in left of the colon)
 1. Specifying your working directory the same as where files are
 1. Ensure MPI has enough shared memory, since Docker defaults to 64 MB
 
@@ -53,15 +67,28 @@ The main constraint to trying things out is that the Qt and OpenMPI dependencies
 
 Bumping up the size of `/dev/shm` from the default of 64 MB via ` docker run --shm-size="4g"` followed by 8 GB did not help, but it should likely be specified for Docker runs due to the need with other MPI codes.
 
-<!-- TODO: SHARE NON DOCKER RESULT -->
-
-### Representative Error Output
+## Representative Error Output
 The `*.msg` files don't not contain any error messages.  In our `*.out`, common error messages have been
 1. `KENO failed to execute. error code -1`
 1. Segmentation fault with `PMIX ERROR: UNPACK-PAST-END`
 
+Running the input provided by support, we get this stack trace using `mpiexec`.
+```
+[ip-172-31-30-100:17152] *** Process received signal ***
+[ip-172-31-30-100:17152] Signal: Segmentation fault (11)
+[ip-172-31-30-100:17152] Signal code: Address not mapped (1)
+[ip-172-31-30-100:17152] Failing at address: 0x28
+[ip-172-31-30-100:17152] [ 0] /lib64/libpthread.so.0(+0x118e0)[0x7f70174c58e0]
+[ip-172-31-30-100:17152] [ 1] /usr/local/lib/openmpi/mca_pmix_pmix112.so(+0x2aac6)[0x7f7013245ac6]
+[ip-172-31-30-100:17152] [ 2] /usr/local/lib/libopen-pal.so.20(opal_libevent2022_event_base_loop+0x774)[0x7f701808c5d4]
+[ip-172-31-30-100:17152] [ 3] /usr/local/lib/openmpi/mca_pmix_pmix112.so(+0x28a8c)[0x7f7013243a8c]
+[ip-172-31-30-100:17152] [ 4] /lib64/libpthread.so.0(+0x744b)[0x7f70174bb44b]
+[ip-172-31-30-100:17152] [ 5] /lib64/libc.so.6(clone+0x3f)[0x7f70171f640f]
+[ip-172-31-30-100:17152] *** End of error message ***
+Segmentation fault
+```
 
-Last of all, the following prints to the terminal.
+Last of all, the following prints to the terminal for our test input.
 ```
 --------------------------------------------------------------------------
 mpiexec has exited due to process rank 0 with PID 0 on

@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Stop at first failure
+set -e
+
 amazon-linux-extras install -y java-openjdk11
 amazon-linux-extras enable java-openjdk11
         
